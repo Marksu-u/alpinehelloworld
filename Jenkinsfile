@@ -30,16 +30,16 @@ pipeline {
                }
             }
        }
-       stage('Test image') {
-           agent any
-           steps {
-              script {
-                sh '''
-                    curl http://127.0.0.1:8080 | grep -q "Hello world!"
-                '''
-              }
-           }
-      }
+        stage('Test image') {
+            agent any
+            steps {
+                script {
+                    sh '''
+                        curl -u admin:5ba8050b143946759a9ee29512c48aa8 http://127.0.0.1:8080 | grep -q "Hello world!"
+                    '''
+                }
+            }
+        }
       stage('Clean Container') {
           agent any
           steps {
