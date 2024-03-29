@@ -1,11 +1,11 @@
+/* import shared library */
+@Library('shared-library')_
+
 pipeline {
      environment {
        ID_DOCKER = "${ID_DOCKER_PARAMS}"
        IMAGE_NAME = "alpinehelloworld"
        IMAGE_TAG = "latest"
-//       PORT_EXPOSED = "80" à paraméter dans le job
-       STAGING = "${ID_DOCKER}-staging"
-       PRODUCTION = "${ID_DOCKER}-production"
      }
      agent none
      stages {
@@ -35,7 +35,7 @@ pipeline {
            steps {
               script {
                 sh '''
-                    curl http://172.17.0.1:${PORT_EXPOSED} | grep -q "Hello world!"
+                    curl jenkins-docker | grep -q "Hello world!"
                 '''
               }
            }
@@ -60,7 +60,6 @@ pipeline {
           steps {
              script {
                sh '''
-                   echo $DOCKERHUB_PASSWORD_PSW | docker login -u $ID_DOCKER --password-stdin
                    docker push ${ID_DOCKER}/$IMAGE_NAME:$IMAGE_TAG
                '''
              }
@@ -73,22 +72,18 @@ pipeline {
             }
       agent any
       environment {
-          HEROKU_API_KEY = credentials('heroku_api_key')
+          RENDER_STAGING_DEPLOY_HOOK = credentials('render_api_key')
       }  
       steps {
           script {
             sh '''
-              npm i -g heroku@7.68.0
-              heroku container:login
-              heroku create $STAGING || echo "project already exist"
-              heroku container:push -a $STAGING web
-              heroku container:release -a $STAGING web
+               echo "Staging"
+               echo $RENDER_STAGING_DEPLOY_HOOK
+               curl $RENDER_STAGING_DEPLOY_HOOK
             '''
           }
         }
      }
-
-
 
      stage('Push image in production and deploy it') {
        when {
@@ -96,19 +91,22 @@ pipeline {
             }
       agent any
       environment {
-          HEROKU_API_KEY = credentials('heroku_api_key')
+          RENDER_PRODUCTION_DEPLOY_HOOK = credentials('render_production_deploy_hook')
       }  
       steps {
           script {
             sh '''
-              npm i -g heroku@7.68.0
-              heroku container:login
-              heroku create $PRODUCTION || echo "project already exist"
-              heroku container:push -a $PRODUCTION web
-              heroku container:release -a $PRODUCTION web
+              curl $RENDER_PRODUCTION_DEPLOY_HOOK
             '''
           }
         }
      }
   }
+     post {
+       always {
+            script {
+                 slackNotifier currentBuild.result
+            }
+       }  
+    }
 }
